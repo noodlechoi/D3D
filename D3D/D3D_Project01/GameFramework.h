@@ -4,7 +4,7 @@
 class CGameFramework
 {
 public:
-
+	CGameFramework();
 private:
 	// window ฐüทร
 	HINSTANCE h_instance;

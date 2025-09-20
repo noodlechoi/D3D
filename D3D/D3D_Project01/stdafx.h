@@ -43,9 +43,16 @@ using namespace DirectX;
 {                                                                     \
     HRESULT hr__ = (x);                                               \
     std::wstring wfn = AnsiToWString(__FILE__);                       \
-    if(FAILED(hr__)) { throw DxException(hr__, L#x, wfn, __LINE__); } \
+    if(FAILED(hr__)) { throw CDxException(hr__, L#x, wfn, __LINE__); } \
 }
 #endif
+
+inline std::wstring AnsiToWString(const std::string& str)
+{
+	WCHAR buffer[512];
+	MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
+	return std::wstring(buffer);
+}
 
 // 디버그용 클래스 및 매크로(d3d12 책 참고)
 class CDxException {
