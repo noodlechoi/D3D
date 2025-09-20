@@ -38,6 +38,15 @@ using namespace DirectX;
 #define FRAME_BUFFER_WIDTH	800
 #define FRAME_BUFFER_HEIGHT 600
 
+#ifndef ThrowIfFailed
+#define ThrowIfFailed(x)                                              \
+{                                                                     \
+    HRESULT hr__ = (x);                                               \
+    std::wstring wfn = AnsiToWString(__FILE__);                       \
+    if(FAILED(hr__)) { throw DxException(hr__, L#x, wfn, __LINE__); } \
+}
+#endif
+
 // 디버그용 클래스 및 매크로(d3d12 책 참고)
 class CDxException {
 public:
