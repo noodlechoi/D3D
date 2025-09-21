@@ -4,7 +4,13 @@ CGameFramework::CGameFramework()
 {
 }
 
-void CGameFramework::initDirect3D()
+void CGameFramework::Initialize()
+{
+	CreateDirect3D();
+	CreateCommandObjects();
+}
+
+void CGameFramework::CreateDirect3D()
 {
 	UINT dxgiFactoryFlags{};
 #if defined(_DEBUG) || defined(_DEBUG)
@@ -62,4 +68,55 @@ void CGameFramework::initDirect3D()
 	fence_event = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	if (adapter) adapter->Release();
+}
+
+void CGameFramework::CreateCommandObjects()
+{
+	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
+	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;	// GPU 계산이 오래 걸릴 때 time out 실행 후 다음 명형 실행
+	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;	// GPU가 모든 명령 직접 실행
+
+	// 직접 명령 큐 생성
+	ThrowIfFailed(d3d_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&command_queue)));
+
+	// 할당자 생성
+	ThrowIfFailed(d3d_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&command_allocator)));
+
+	//리스트 생성
+	ThrowIfFailed(d3d_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, command_allocator.Get(), nullptr, IID_PPV_ARGS(command_list.GetAddressOf())));
+
+	// 리스트가 생성되면 Open상태가 됨
+	ThrowIfFailed(command_list->Close());
+}
+
+void CGameFramework::CreateSwapChain()
+{
+//	RECT rc;
+//	GetClientRect(h_wnd, &rc);
+//	client_width = rc.right - rc.left;
+//	client_height = rc.bottom - rc.top;
+//
+//	// 따라하기05
+//	DXGI_SWAP_CHAIN_DESC swapChainDesc{};
+//	swapChainDesc.BufferCount = swap_chain_buffer_num;
+//	swapChainDesc.BufferDesc.Width = client_width;
+//	swapChainDesc.BufferDesc.Height = client_height;
+//	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+//	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+//	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+//	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+//	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+//	swapChainDesc.OutputWindow = h_wnd;
+//	swapChainDesc.SampleDesc.Count = (ms_enabled) ? 4 : 1;
+//	swapChainDesc.SampleDesc.Quality = (ms_enabled) ? (ms_quality_level - 1) : 0;
+//	swapChainDesc.Windowed = TRUE;
+//	// 전체 화면 모드에서 바탕화면의 해상도를 후면 버퍼의 크기에 맞게 변경
+//	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+//
+//	ThrowIfFailed(dxgi_factory->CreateSwapChain(command_queue.Get(), &swapChainDesc, (IDXGISwapChain**)swap_chain.GetAddressOf()));
+//	swap_chain_buffer_index = swap_chain->GetCurrentBackBufferIndex();
+//	ThrowIfFailed(dxgi_factory->MakeWindowAssociation(h_wnd, DXGI_MWA_NO_ALT_ENTER));	// alt+enter에 응답하지 않게 설정
+//#ifndef _WITH_SWAPCHAIN_FULLSCREEN_STATE 
+//	CreateRenderTargetViews();
+//#endif
 }
