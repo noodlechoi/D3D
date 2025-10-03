@@ -26,3 +26,8 @@ LRESULT CWindowManager::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     }
     return 0;
 }
+
+void CWindowManager::Update()
+{
+
+}

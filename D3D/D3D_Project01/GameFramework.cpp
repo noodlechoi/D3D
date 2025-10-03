@@ -120,3 +120,118 @@ void CGameFramework::CreateSwapChain()
 //	CreateRenderTargetViews();
 //#endif
 }
+
+void CGameFramework::CreateRtvAndDsvHeaps()
+{
+	// 렌더 타겟 서술자 힙(서술자 개수 = 스왑체인 버퍼의 개수) 생성
+	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc{};
+	descriptorHeapDesc.NumDescriptors = swap_chain_buffer_num;
+	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	descriptorHeapDesc.NodeMask = 0;
+
+	ThrowIfFailed(d3d_device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&rtv_descriptor_heap)));
+
+	// 렌더 타겟 서술자 힙 원소의 크기 저장
+	rtv_increment_size = d3d_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	// 깊이-스탠실 서술자 힙(1개) 생성
+	descriptorHeapDesc.NumDescriptors = 1;
+	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	ThrowIfFailed(d3d_device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&dsv_descriptor_heap)));
+
+	// 원소 크기 저장
+	dsv_increment_size = d3d_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+}
+
+void CGameFramework::CreateRenderTargetViews()
+{
+	// 스왑체인의 각 후면 버퍼에 대한 렌더 타겟 뷰 생성
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUDescriptorHandle = rtv_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
+	for (UINT i = 0; i < swap_chain_buffer_num; ++i) {
+		ThrowIfFailed(swap_chain->GetBuffer(i, IID_PPV_ARGS(&render_target_buffers[i])));
+		d3d_device->CreateRenderTargetView(render_target_buffers[i].Get(), NULL, rtvCPUDescriptorHandle);
+		rtvCPUDescriptorHandle.ptr += rtv_increment_size;
+	}
+}
+
+void CGameFramework::CreateDepthStencilView()
+{
+	D3D12_RESOURCE_DESC resourceDesc;
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	resourceDesc.Alignment = 0;
+	//resourceDesc.Width = client_width;
+	//resourceDesc.Height = client_height;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	resourceDesc.SampleDesc.Count = (ms_enabled) ? 4 : 1;
+	resourceDesc.SampleDesc.Quality = (ms_enabled) ? (ms_quality_level - 1) : 0;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	D3D12_HEAP_PROPERTIES heapProperties{};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProperties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProperties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProperties.CreationNodeMask = 1;
+	heapProperties.VisibleNodeMask = 1;
+
+	D3D12_CLEAR_VALUE clearValue;
+	clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	clearValue.DepthStencil.Depth = 1.0f;
+	clearValue.DepthStencil.Stencil = 0;
+
+	// 버퍼 생성
+	ThrowIfFailed(d3d_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue, IID_PPV_ARGS(&depth_stencil_buffer)));
+
+	// 뷰 생성
+	// 힙 시작 핸들 값
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvCPUDesctiptorHandle = dsv_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
+	d3d_device->CreateDepthStencilView(depth_stencil_buffer.Get(), NULL, dsvCPUDesctiptorHandle);
+}
+
+void CGameFramework::waitForGpuComplete()
+{
+	// CPU 펜스 값 증가
+	const UINT64 fenceValue = ++fence_value[swap_chain_buffer_index];
+	// GPU가 펜스 값을 설정하는 명령을 명령어 큐에 추가
+	ThrowIfFailed(command_queue->Signal(fence.Get(), fenceValue));
+	// GPU 펜스 값이 CPU 펜스 값보다 작으면 계속 이벤트를 기다림
+	if (fence->GetCompletedValue() < fenceValue) {
+		ThrowIfFailed(fence->SetEventOnCompletion(fenceValue, fence_event));
+		::WaitForSingleObject(fence_event, INFINITE);
+	}
+}
+
+void CGameFramework::ChangeSwapChainState()
+{
+	waitForGpuComplete();
+
+	BOOL fullScreenState{};
+	swap_chain->GetFullscreenState(&fullScreenState, NULL);
+	swap_chain->SetFullscreenState(!fullScreenState, NULL);	// full -> window, window -> full
+
+	DXGI_MODE_DESC targetParameters;
+	targetParameters.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	/*targetParameters.Width = client_width;
+	targetParameters.Height = client_height;*/
+	targetParameters.RefreshRate.Numerator = 60;
+	targetParameters.RefreshRate.Denominator = 1;
+	targetParameters.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	targetParameters.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	swap_chain->ResizeTarget(&targetParameters);
+
+	// ResizeBuffers가 성공하기 위해 모든 직/간접 참조를 해제해야 함
+	for (int i = 0; i < swap_chain_buffer_num; ++i) {
+		if (render_target_buffers[i]) render_target_buffers[i].Reset();
+	}
+
+	DXGI_SWAP_CHAIN_DESC swapChainDesc;
+	swap_chain->GetDesc(&swapChainDesc);
+	//swap_chain->ResizeBuffers(swap_chain_buffer_num, client_width, client_height, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags);
+
+	swap_chain_buffer_index = swap_chain->GetCurrentBackBufferIndex();
+
+	CreateRenderTargetViews();
+}

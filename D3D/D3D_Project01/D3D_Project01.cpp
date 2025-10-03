@@ -18,8 +18,8 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
-CGameFramework gGameFramework{};
-CWindowManager gWindowManger{};
+//CGameFramework gGameFramework{};
+CWindowManager* gWindowManger{};
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -56,7 +56,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
         }
         else {
-            //gGameFramework.Update();
+            gWindowManger->Update();
         }
     }
     //gGameFramework.OnDestroy();
@@ -119,6 +119,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    {
       return FALSE;
    }
+
+   // 생성
+   gWindowManger = new CWindowManager(hWnd);
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
