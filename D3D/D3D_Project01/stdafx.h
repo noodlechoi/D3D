@@ -16,6 +16,7 @@
 
 // C++ 헤더파일
 #include <string>
+#include <memory>
 
 #include <wrl.h>
 

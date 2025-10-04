@@ -1,6 +1,7 @@
 ﻿#include "GameFramework.h"
 
-CGameFramework::CGameFramework()
+CGameFramework::CGameFramework(CWindowGameMediator* mediator)
+	: mediator{mediator}
 {
 }
 

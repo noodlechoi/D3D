@@ -1,10 +1,12 @@
 ﻿#pragma once
-#include "WindowManager.h"
+#include "stdafx.h"
+
+class CWindowGameMediator;
 
 class CGameFramework
 {
 public:
-	CGameFramework();
+	CGameFramework(CWindowGameMediator* mediator);
 
 	// D3D 관련 객체 생성
 	void Initialize();
@@ -21,9 +23,8 @@ public:
 
 private:
 	// window 관련
-	HINSTANCE h_instance;
-	HWND h_wnd;
-
+	std::shared_ptr<CWindowGameMediator> mediator;
+	
 	// direct3D
 	ComPtr<IDXGIFactory4> dxgi_factory{};
 	ComPtr<ID3D12Device> d3d_device{};
