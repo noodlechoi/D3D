@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "stdafx.h"
+#include "GameTimer.h"
 
 class CWindowGameMediator;
 
@@ -8,19 +9,25 @@ class CGameFramework
 public:
 	CGameFramework(CWindowGameMediator* mediator);
 
+	void OnCreate();
+	void OnDestroy();
+
+	// 전체화면 swap chain 상태 변화
+	void ChangeSwapChainState();
+
+	// Frame
+	void MoveToNextFrame();
+	void FrameAdvance();
+protected:
 	// D3D 관련 객체 생성
-	void Initialize();
 	void CreateDirect3D();
 	void CreateCommandObjects();
 	void CreateSwapChain();
 	void CreateRtvAndDsvHeaps();
 	void CreateRenderTargetViews();
 	void CreateDepthStencilView();
+
 	void waitForGpuComplete();
-
-	// 전체화면 swap chain 상태 변화
-	void ChangeSwapChainState();
-
 private:
 	// window 관련
 	CWindowGameMediator* mediator;
@@ -57,5 +64,8 @@ private:
 	// multi sample
 	UINT ms_quality_level{};
 	bool ms_enabled{};
+
+	// Game
+	CGameTimer timer{};
 };
 

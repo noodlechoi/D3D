@@ -33,9 +33,14 @@ BOOL CWindowManager::Init(int nCmdShow)
     RECT rc = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
     AdjustWindowRect(&rc, dwstyle, FALSE);
 
+    // client 크기 저장
+    client.cx = rc.right - rc.left;
+    client.cy = rc.bottom - rc.top;
+
     //hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
     CreateWindowEx(0, L"DirectXWindow", L"DX window", dwstyle,
         CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, h_inst, this);
+
 
     if (!h_wnd) {
         return FALSE;
@@ -129,10 +134,17 @@ bool CWindowGameMediator::Init(int nCmdShow)
     if (!window_manager->Create(nCmdShow)) {
         return false;
     }
+    game_framework->OnCreate();
 
     return true;
 }
 
 void CWindowGameMediator::Update()
 {
+    game_framework->FrameAdvance();
+}
+
+void CWindowGameMediator::OnDestroy()
+{
+    game_framework->OnDestroy();
 }

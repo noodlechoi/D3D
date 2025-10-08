@@ -1,14 +1,33 @@
 ﻿#include "GameFramework.h"
+#include "WindowManager.h"
 
 CGameFramework::CGameFramework(CWindowGameMediator* mediator)
 	: mediator{mediator}
 {
 }
 
-void CGameFramework::Initialize()
+void CGameFramework::OnDestroy()
+{
+	waitForGpuComplete();
+
+	::CloseHandle(fence_event);
+
+	swap_chain->SetFullscreenState(FALSE, nullptr);
+#if defined(_DEBUG)
+	// 리소스 누수 확인
+	ComPtr<IDXGIDebug1> dxgi_debug{};
+	DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgi_debug));
+	HRESULT result = dxgi_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
+#endif
+}
+
+void CGameFramework::OnCreate()
 {
 	CreateDirect3D();
 	CreateCommandObjects();
+	CreateRtvAndDsvHeaps();
+	CreateSwapChain();
+	CreateDepthStencilView();
 }
 
 void CGameFramework::CreateDirect3D()
@@ -92,34 +111,31 @@ void CGameFramework::CreateCommandObjects()
 
 void CGameFramework::CreateSwapChain()
 {
-//	RECT rc;
-//	GetClientRect(h_wnd, &rc);
-//	client_width = rc.right - rc.left;
-//	client_height = rc.bottom - rc.top;
-//
-//	// 따라하기05
-//	DXGI_SWAP_CHAIN_DESC swapChainDesc{};
-//	swapChainDesc.BufferCount = swap_chain_buffer_num;
-//	swapChainDesc.BufferDesc.Width = client_width;
-//	swapChainDesc.BufferDesc.Height = client_height;
-//	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-//	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
-//	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-//	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-//	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-//	swapChainDesc.OutputWindow = h_wnd;
-//	swapChainDesc.SampleDesc.Count = (ms_enabled) ? 4 : 1;
-//	swapChainDesc.SampleDesc.Quality = (ms_enabled) ? (ms_quality_level - 1) : 0;
-//	swapChainDesc.Windowed = TRUE;
-//	// 전체 화면 모드에서 바탕화면의 해상도를 후면 버퍼의 크기에 맞게 변경
-//	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-//
-//	ThrowIfFailed(dxgi_factory->CreateSwapChain(command_queue.Get(), &swapChainDesc, (IDXGISwapChain**)swap_chain.GetAddressOf()));
-//	swap_chain_buffer_index = swap_chain->GetCurrentBackBufferIndex();
-//	ThrowIfFailed(dxgi_factory->MakeWindowAssociation(h_wnd, DXGI_MWA_NO_ALT_ENTER));	// alt+enter에 응답하지 않게 설정
-//#ifndef _WITH_SWAPCHAIN_FULLSCREEN_STATE 
-//	CreateRenderTargetViews();
-//#endif
+	SIZE client{ mediator->GetClientSize() };
+
+	// 따라하기05
+	DXGI_SWAP_CHAIN_DESC swapChainDesc{};
+	swapChainDesc.BufferCount = swap_chain_buffer_num;
+	swapChainDesc.BufferDesc.Width = client.cx;
+	swapChainDesc.BufferDesc.Height = client.cy;
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.OutputWindow = mediator->GetHWND();
+	swapChainDesc.SampleDesc.Count = (ms_enabled) ? 4 : 1;
+	swapChainDesc.SampleDesc.Quality = (ms_enabled) ? (ms_quality_level - 1) : 0;
+	swapChainDesc.Windowed = TRUE;
+	// 전체 화면 모드에서 바탕화면의 해상도를 후면 버퍼의 크기에 맞게 변경
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+	ThrowIfFailed(dxgi_factory->CreateSwapChain(command_queue.Get(), &swapChainDesc, (IDXGISwapChain**)swap_chain.GetAddressOf()));
+	swap_chain_buffer_index = swap_chain->GetCurrentBackBufferIndex();
+	ThrowIfFailed(dxgi_factory->MakeWindowAssociation(mediator->GetHWND(), DXGI_MWA_NO_ALT_ENTER));	// alt+enter에 응답하지 않게 설정
+#ifndef _WITH_SWAPCHAIN_FULLSCREEN_STATE 
+	CreateRenderTargetViews();
+#endif
 }
 
 void CGameFramework::CreateRtvAndDsvHeaps()
@@ -158,11 +174,12 @@ void CGameFramework::CreateRenderTargetViews()
 
 void CGameFramework::CreateDepthStencilView()
 {
+	SIZE client{ mediator->GetClientSize() };
 	D3D12_RESOURCE_DESC resourceDesc;
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	resourceDesc.Alignment = 0;
-	//resourceDesc.Width = client_width;
-	//resourceDesc.Height = client_height;
+	resourceDesc.Width = client.cx;
+	resourceDesc.Height = client.cy;
 	resourceDesc.DepthOrArraySize = 1;
 	resourceDesc.MipLevels = 1;
 	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -213,10 +230,11 @@ void CGameFramework::ChangeSwapChainState()
 	swap_chain->GetFullscreenState(&fullScreenState, NULL);
 	swap_chain->SetFullscreenState(!fullScreenState, NULL);	// full -> window, window -> full
 
+	SIZE client{ mediator->GetClientSize() };
 	DXGI_MODE_DESC targetParameters;
 	targetParameters.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	/*targetParameters.Width = client_width;
-	targetParameters.Height = client_height;*/
+	targetParameters.Width = client.cx;
+	targetParameters.Height = client.cy;
 	targetParameters.RefreshRate.Numerator = 60;
 	targetParameters.RefreshRate.Denominator = 1;
 	targetParameters.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
@@ -230,9 +248,77 @@ void CGameFramework::ChangeSwapChainState()
 
 	DXGI_SWAP_CHAIN_DESC swapChainDesc;
 	swap_chain->GetDesc(&swapChainDesc);
-	//swap_chain->ResizeBuffers(swap_chain_buffer_num, client_width, client_height, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags);
+	swap_chain->ResizeBuffers(swap_chain_buffer_num, client.cx, client.cy, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags);
 
 	swap_chain_buffer_index = swap_chain->GetCurrentBackBufferIndex();
 
 	CreateRenderTargetViews();
+}
+
+void CGameFramework::MoveToNextFrame()
+{
+	// back 버퍼로 스왑체인
+	swap_chain_buffer_index = swap_chain->GetCurrentBackBufferIndex();
+
+	UINT64 fenceValue = ++fence_value[swap_chain_buffer_index];
+	ThrowIfFailed(command_queue->Signal(fence.Get(), fenceValue));
+	if (fence->GetCompletedValue() < fenceValue) {
+		ThrowIfFailed(fence->SetEventOnCompletion(fenceValue, fence_event));
+		WaitForSingleObject(fence_event, INFINITE);
+	}
+}
+
+void CGameFramework::FrameAdvance()
+{
+	timer.Tick();
+
+	// 명령 리셋
+	ThrowIfFailed(command_allocator->Reset());
+	ThrowIfFailed(command_list->Reset(command_allocator.Get(), NULL));
+
+	// 현재 렌더 타겟에 대한 프리젠트가 끝나기를 기다림. 프리젠트가 끝나면 렌더 타겟 상태로 바꿈
+	D3D12_RESOURCE_BARRIER resourceBarrier{};
+	resourceBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	resourceBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	// render target state로 리소스 변경
+	resourceBarrier.Transition.pResource = render_target_buffers[swap_chain_buffer_index].Get();
+	resourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	resourceBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	resourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	command_list->ResourceBarrier(1, &resourceBarrier);
+
+	// 현재 렌더 타겟에 해당하는 서술자의 CPU 주소(핸들) 값을 계산
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUDesciptorHandle = rtv_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
+	rtvCPUDesciptorHandle.ptr += (swap_chain_buffer_index * rtv_increment_size);
+
+	// 깊이-스텐실 서술자의 CPU 주소를 계산한다.
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvCPUDescriptorHandle = dsv_descriptor_heap->GetCPUDescriptorHandleForHeapStart();
+
+	// 렌더 타겟 뷰와 깊이 스텐실 뷰를 출력 병합 단계(OM)에 연결
+	command_list->OMSetRenderTargets(1, &rtvCPUDesciptorHandle, FALSE, &dsvCPUDescriptorHandle);
+
+	// 원하는 색상으로 렌더 타겟 지우기
+	float clearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
+	command_list->ClearRenderTargetView(rtvCPUDesciptorHandle, clearColor, 0, NULL);
+
+	// 원하는 값으로 깊이 스텐실 지우기
+	command_list->ClearDepthStencilView(dsvCPUDescriptorHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0F, 0, 0, NULL);
+
+	// 현재 렌더 타겟에 대한 렌더링이 끝나기를 기다림. GPU가 버퍼를 더 이상 사용하지 않으면 렌더 타겟 -> 프레젠트 상태로 변경
+	resourceBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	resourceBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	resourceBarrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	command_list->ResourceBarrier(1, &resourceBarrier);
+
+	ThrowIfFailed(command_list->Close());
+
+	ID3D12CommandList* commandLists[]{ command_list.Get() };
+	command_queue->ExecuteCommandLists(1, commandLists);
+
+	waitForGpuComplete();
+
+	// 스왑체인 프리젠트. 현재 렌더 타겟의 내용이 전면 버퍼로 옮겨지고 렌더 타겟 인덱스가 바뀜
+	swap_chain->Present(0, 0);
+
+	MoveToNextFrame();
 }

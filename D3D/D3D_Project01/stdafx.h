@@ -22,6 +22,7 @@
 
 #include <d3d12.h>
 #include <dxgi1_4.h>
+#include <dxgidebug.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
@@ -35,6 +36,7 @@ using namespace DirectX;
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
 
 #define FRAME_BUFFER_WIDTH	800
 #define FRAME_BUFFER_HEIGHT 600
@@ -47,6 +49,7 @@ using namespace DirectX;
     if(FAILED(hr__)) { throw CDxException(hr__, L#x, wfn, __LINE__); } \
 }
 #endif
+
 
 inline std::wstring AnsiToWString(const std::string& str)
 {
