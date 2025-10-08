@@ -37,12 +37,7 @@ BOOL CWindowManager::Init(int nCmdShow)
     CreateWindowEx(0, L"DirectXWindow", L"DX window", dwstyle,
         CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, h_inst, this);
 
-    if (!h_wnd)
-    {
-        DWORD err = GetLastError();
-        wchar_t buf[256];
-        wsprintf(buf, L"CreateWindowEx failed with error %lu", err);
-        MessageBox(nullptr, buf, L"Error", MB_OK);
+    if (!h_wnd) {
         return FALSE;
     }
 

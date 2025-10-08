@@ -41,7 +41,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         else {
             WGMediator.Update();
         }
-    }
+     }
 
     return (int) msg.wParam;
 }

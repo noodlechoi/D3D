@@ -17,7 +17,7 @@ public:
 private:
 	HWND h_wnd{};
 	HINSTANCE h_inst;
-	std::shared_ptr<CWindowGameMediator> mediator;
+	CWindowGameMediator* mediator;
 
 	static LRESULT CALLBACK StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	// 정보 대화 상자의 메시지 처리기

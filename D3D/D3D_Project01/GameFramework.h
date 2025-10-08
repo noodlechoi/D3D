@@ -23,7 +23,7 @@ public:
 
 private:
 	// window 관련
-	std::shared_ptr<CWindowGameMediator> mediator;
+	CWindowGameMediator* mediator;
 	
 	// direct3D
 	ComPtr<IDXGIFactory4> dxgi_factory{};
