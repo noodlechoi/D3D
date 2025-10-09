@@ -29,7 +29,7 @@ ATOM CWindowManager::MyRegisterClass()
 
 BOOL CWindowManager::Init(int nCmdShow)
 {
-    DWORD dwstyle = WS_OVERLAPPED | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_BORDER; // 창 스타일 정의
+    DWORD dwstyle = WS_OVERLAPPED | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_BORDER | WS_MAXIMIZEBOX; // 창 스타일 정의
     RECT rc = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
     AdjustWindowRect(&rc, dwstyle, FALSE);
 
