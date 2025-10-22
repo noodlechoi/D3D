@@ -17,6 +17,7 @@
 // C++ 헤더파일
 #include <string>
 #include <memory>
+#include <vector>
 
 #include <wrl.h>
 
