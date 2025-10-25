@@ -1,14 +1,10 @@
 ﻿#include "Mesh.h"
 
-void CVertex::Render()
-{
-}
-
 CMesh::CMesh(CVertex* vertexes)
 {
 }
 
-void CMesh::Render()
+void CMesh::Render(ID3D12GraphicsCommandList* commandList)
 {
 
 }
